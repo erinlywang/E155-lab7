@@ -125,6 +125,21 @@ module sbox_sync(
 endmodule
 
 /////////////////////////////////////////////
+// shiftrows
+//   The bytes in the last three rows of the State are cyclically shifted over different numbers of bytes
+//   Section 5.1.2, Figure 8
+//   Operation different for each row, use array swizzling
+/////////////////////////////////////////////
+
+module shiftrows(input  logic [127:0] a,
+                 output logic [127:0] y);
+	assign y = {a[127:120], a[87:80], a[47:40], a[7:0],
+				a[95:88], a[55:48], a[15:8], a[103:96],
+				a[63:56], a[23:16], a[111:104], a[71:64],
+				a[31:24], a[119:112], a[79:72], a[39:32]}
+endmodule
+
+/////////////////////////////////////////////
 // mixcolumns
 //   Even funkier action on columns
 //   Section 5.1.3, Figure 9
@@ -133,29 +148,6 @@ endmodule
 
 module mixcolumns(input  logic [127:0] a,
                   output logic [127:0] y);
-
-  mixcolumn mc0(a[127:96], y[127:96]);
-  mixcolumn mc1(a[95:64],  y[95:64]);
-  mixcolumn mc2(a[63:32],  y[63:32]);
-  mixcolumn mc3(a[31:0],   y[31:0]);
-endmodule
-
-/////////////////////////////////////////////
-// mixcolumn
-//   Perform Galois field operations on bytes in a column
-//   See EQ(4) from E. Ahmed et al, Lightweight Mix Columns Implementation for AES, AIC09
-//   for this hardware implementation
-/////////////////////////////////////////////
-
-/////////////////////////////////////////////
-// mixcolumns
-//   Even funkier action on columns
-//   Section 5.1.3, Figure 9
-//   Same operation performed on each of four columns
-/////////////////////////////////////////////
-
-module shiftrows(input  logic [127:0] a,
-                 output logic [127:0] y);
 
   mixcolumn mc0(a[127:96], y[127:96]);
   mixcolumn mc1(a[95:64],  y[95:64]);
