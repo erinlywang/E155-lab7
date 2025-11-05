@@ -78,9 +78,67 @@ module aes_core(input  logic         clk,
                 input  logic [127:0] plaintext, 
                 output logic         done, 
                 output logic [127:0] cyphertext);
-
     // TODO: Your code goes here
+	logic [127:0] state;
+	assign state = plaintext;
+
+	always_ff with round
+	
+	assign mux1 = (round == 9
+
+	addroundkey(state, key{127:96})
     
+endmodule
+
+/////////////////////////////////////////////
+// addroundkey
+//   Infamous AES byte substitutions with magic numbers
+//   Combinational version which is mapped to LUTs (logic cells)
+//   Section 5.1.4
+/////////////////////////////////////////////
+module addroundkey(input logic [127:0] a,
+				   input logic [127:0] key,
+				   output logic [127:0] y);
+	assign y = a ^ key; 
+endmodule
+
+/////////////////////////////////////////////
+// findnextkey
+//   Figures out what the next key is based on current round and current key
+//   The next key is the next column of the input keys
+/////////////////////////////////////////////
+module findnextkey(input logic [127:0] prevkey,
+				   input logic [3:0] round,
+				   output logic [127:0] nextkey);
+	logic [31:0] rcon;
+	logic [31:0] rotword;
+	logic [31:0] subbytes;
+	logic [31:0] firstcol seccol, thirdcol, fourcol;
+	assign rotword = {prevkey[23:0], prevkey[31:24]};
+	
+	sbox_sync(rotword, subbytes);
+	
+	always_comb begin
+		case (round)
+			4'd1:		rcon = {8'h01, 24'h0};
+			4'd2:		rcon = {8'h02, 24'h0};
+			4'd3:		rcon = {8'h04, 24'h0};
+			4'd4:		rcon = {8'h08, 24'h0};
+			4'd5:		rcon = {8'h10, 24'h0};
+			4'd6:		rcon = {8'h20, 24'h0};
+			4'd7:		rcon = {8'h40, 24'h0};
+			4'd8:		rcon = {8'h80, 24'h0};
+			4'd9:		rcon = {8'h1b, 24'h0};
+			4'd10:		rcon = {8'h36, 24'h0};
+			default: 	rcon = 32'h0;
+		endcase
+	end	
+
+	assign firstcol = key[127:96] ^ subbytes ^ rotword;
+	assign seccol = key[95:64] ^ firstcol;
+	assign thirdcol = key[63:32] ^ seccol;
+	assign fourcol = key[31:0] ^ thirdcol;
+	assign nextkey = {firstcol, seccol, thirdcol, fourcol};
 endmodule
 
 /////////////////////////////////////////////
@@ -176,7 +234,7 @@ module mixcolumn(input  logic [31:0] a,
         galoismult gm3(a3^a0, t3);
         
         assign y0 = a0 ^ tmp ^ t0;
-        assign y1 = a1 ^ tmp ^ t1;
+        assign y1 = a1 ^ tmp ^ t1;*
         assign y2 = a2 ^ tmp ^ t2;
         assign y3 = a3 ^ tmp ^ t3;
         assign y = {y0, y1, y2, y3};    
