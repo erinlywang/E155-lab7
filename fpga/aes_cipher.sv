@@ -72,7 +72,8 @@ endmodule
 //        [127:96]  [95:64] [63:32] [31:0]      w[0]    w[1]    w[2]    w[3]
 /////////////////////////////////////////////
 
-module aes_core(input  logic         clk, 
+module aes_core(input  logic         clk,
+				input  logic		 rst,
                 input  logic         load,
                 input  logic [127:0] key, 
                 input  logic [127:0] plaintext, 
@@ -80,9 +81,14 @@ module aes_core(input  logic         clk,
                 output logic [127:0] cyphertext);
     // TODO: Your code goes here
 	logic [127:0] state;
+	logic [3:0] round, counter;
 	assign state = plaintext;
 
-	always_ff with round
+	always_ff @(posedge clk) begin
+		if (reset) counter <= 4'b0;
+		else if (counter==4'b0100);
+		else		counter <= counter + 1;
+	end
 	
 	assign mux1 = (round == 9
 
