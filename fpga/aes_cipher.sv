@@ -73,26 +73,50 @@ endmodule
 /////////////////////////////////////////////
 
 module aes_core(input  logic         clk,
-				input  logic		 rst,
                 input  logic         load,
                 input  logic [127:0] key, 
                 input  logic [127:0] plaintext, 
                 output logic         done, 
                 output logic [127:0] cyphertext);
     // TODO: Your code goes here
-	logic [127:0] state;
-	logic [3:0] round, counter;
-	assign state = plaintext;
+	logic [127:0] firststate, prevstate, state;
+	logic counter;
+	logic [3:0] round;
 
 	always_ff @(posedge clk) begin
-		if (reset) counter <= 4'b0;
-		else if (counter==4'b0100);
-		else		counter <= counter + 1;
+		if (load == 0) begin
+			counter <= 1'b0;
+			round <= 4'b0;
+		end
+		else if (counter[1] == 1) begin
+			counter <= counter + 1;
+			round <= round + 1;
+		end
+		else		begin
+			counter <= counter + 1;
+			round <= round;
+		end
 	end
-	
-	assign mux1 = (round == 9
 
-	addroundkey(state, key{127:96})
+	assign mux1 = ((round==4'd0) | (round == 4'd9)) ? firststate : state;
+	assign mux2 = (round == 4'd9) ? state : prevstate;
+	assign prevstate = mux2;
+
+	addroundkey(plaintext, key, firststate);
+	findnextkey(key, round, key);
+	subbytes(mux1, state);
+	shiftrows(state, state);
+	mixcolumns(state, state);
+	addroundkey(state, key, state);
+
+	findnextkey(key, round, key)
+	subbytes(mux2, state);
+	shiftrows(state, state);
+	addroundkey(state, key, state);
+
+	assign cyphertext = state;
+	
+	
     
 endmodule
 
@@ -118,11 +142,17 @@ module findnextkey(input logic [127:0] prevkey,
 				   output logic [127:0] nextkey);
 	logic [31:0] rcon;
 	logic [31:0] rotword;
+	logic [7:0] subbytes1, subbytes2, subbytes3, subbytes4;
 	logic [31:0] subbytes;
 	logic [31:0] firstcol seccol, thirdcol, fourcol;
 	assign rotword = {prevkey[23:0], prevkey[31:24]};
 	
-	sbox_sync(rotword, subbytes);
+	sbox_sync(rotword[31:24], subbytes1);
+	sbox_sync(rotword[23:16], subbytes2);
+	sbox_sync(rotword[15:8], subbytes3);
+	sbox_sync(rotword[7:0], subbytes4);
+
+	assign subbytes = {subbytes1, subbytes2, subbytes3, subbytes4};
 	
 	always_comb begin
 		case (round)
@@ -163,6 +193,36 @@ module sbox(input  logic [7:0] a,
 
   initial   $readmemh("sbox.txt", sbox);
   assign y = sbox[a];
+endmodule
+
+/////////////////////////////////////////////
+// subbytes
+//   AES byte substitution for the whole text
+//   Uses synchronous sbox
+//   Section 5.1.1
+/////////////////////////////////////////////
+module subbytes(
+	input		logic [127:0] a,
+	output 	logic [127:0] y);
+            
+  // sbox implemented as a ROM
+  // This module is synchronous and will be inferred using BRAMs (Block RAMs)
+	sbox_sync(a[127:120], y[127:120]);
+	sbox_sync(a[119:112], y[119:112]);
+	sbox_sync(a[111:104], y[111:104]);
+	sbox_sync(a[103:96], y[103:96]);
+	sbox_sync(a[95:88], y[95:88]);
+	sbox_sync(a[87:80], y[87:80]);
+	sbox_sync(a[79:72], y[79:72]);
+	sbox_sync(a[71:64], y[71:64]);
+	sbox_sync(a[63:56], y[63:56]);
+	sbox_sync(a[55:48], y[55:48]);
+	sbox_sync(a[47:40], y[47:40]);
+	sbox_sync(a[39:32], y[39:32]);
+	sbox_sync(a[31:24], y[31:24]);
+	sbox_sync(a[23:16], y[23:16]);
+	sbox_sync(a[15:8], y[15:8]);
+	sbox_sync(a[7:0], y[7:0]);
 endmodule
 
 /////////////////////////////////////////////
@@ -240,7 +300,7 @@ module mixcolumn(input  logic [31:0] a,
         galoismult gm3(a3^a0, t3);
         
         assign y0 = a0 ^ tmp ^ t0;
-        assign y1 = a1 ^ tmp ^ t1;*
+        assign y1 = a1 ^ tmp ^ t1;
         assign y2 = a2 ^ tmp ^ t2;
         assign y3 = a3 ^ tmp ^ t3;
         assign y = {y0, y1, y2, y3};    
