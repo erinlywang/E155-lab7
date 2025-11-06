@@ -98,16 +98,16 @@ module aes_core(input  logic         clk,
 		end
 	end
 
-	assign mux1 = ((round==4'd0) | (round == 4'd9)) ? firststate : state;
+	assign mux1 = ((round==4'd0) | (round == 4'd9)) ? state_after_firstaddkey : state_after_addkey;
 	assign mux2 = (round == 4'd9) ? state : prevstate;
 	assign prevstate = mux2;
 
-	addroundkey(plaintext, key, firststate);
-	findnextkey(key, round, key);
-	subbytes(mux1, state);
-	shiftrows(state, state);
-	mixcolumns(state, state);
-	addroundkey(state, key, state);
+	addroundkey(state, key, state_after_firstaddkey);
+	findnextkey(key, round, nextkey);
+	subbytes(mux1, state_after_subbytes);
+	shiftrows(state_after_subbytes, state_after_shiftrows);
+	mixcolumns(state_after_shiftrows, state_after_mixcols);
+	addroundkey(state_after_mixcols, nextkey, state_after_addkey);
 
 	findnextkey(key, round, key)
 	subbytes(mux2, state);
